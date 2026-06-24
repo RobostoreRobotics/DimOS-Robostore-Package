@@ -123,7 +123,9 @@ _camera = (
             fps=15,
             enable_pointcloud=True,
             pointcloud_fps=2.0,
-            serial_number="337122075095",
+            # No serial_number: auto-detect the connected D435i (a pinned serial
+            # crashes RealSenseCamera.start with "No device connected" on a
+            # different/swapped camera, which breaks every other robot).
             # Parent the camera to FastLio2's body frame so camera data lives
             # in the SLAM world when localization is composed (g1-agentic-nav).
             base_frame_id="body",
