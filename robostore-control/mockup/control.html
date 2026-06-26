@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RoboDimOS Control — Control tab mockup v3</title>
+<style>
+  /* ============ FONT ============ */
+  @font-face {
+    font-family: "Inter";
+    src: url("InterVariable.woff2") format("woff2");
+    font-weight: 100 900;
+    font-display: swap;
+  }
+
+  /* ============ TOKENS ============ */
+  :root {
+    --bg:        #090b0d;
+    --card-hi:   #15181d;
+    --card-lo:   #111418;
+    --panel-2:   #1a1e24;   /* nested / layered panel surface */
+    --well:      #0c0e11;   /* inset wells (tab track, inputs, slider tracks) */
+    --inset:     #050607;   /* view content background */
+    --line:      rgba(255,255,255,0.07);
+    --line-hi:   rgba(255,255,255,0.16);
+    --txt:       #eaecef;
+    --txt-2:     #9aa1aa;
+    --txt-3:     #666d77;
+    --gold:      #e8b54d;
+    --gold-deep: #c9952f;
+    --gold-soft: rgba(232,181,77,0.13);
+    --gold-line: rgba(232,181,77,0.42);
+    --green:     #3fd68a;
+    --amber:     #e8a13d;
+    --red:       #e5484d;
+    --r-card: 14px;
+    --r-ctl: 9px;
+    --mono: "Cascadia Mono", Consolas, "Roboto Mono", monospace;
+    --ease: 150ms cubic-bezier(.4,0,.2,1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--txt);
+    font: 13.5px/1.45 Inter, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-width: 1500px;
+    overflow: hidden;
+  }
+  .num { font-family: var(--mono); font-feature-settings: "tnum"; }
+  svg.ico { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; display: block; }
+
+  /* ============ SOFT-DEPTH SURFACES ============ */
+  .ctl {
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 55%), #1b2026;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: var(--r-ctl);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 1px 2px rgba(0,0,0,.45);
+    color: var(--txt-2);
+    transition: border-color var(--ease), color var(--ease), background-color var(--ease);
+    cursor: pointer; user-select: none;
+  }
+  .ctl:hover { border-color: var(--line-hi); color: var(--txt); }
+  .ctl:active { box-shadow: inset 0 2px 4px rgba(0,0,0,.45); }
+  .ovl .ctl, .ovl.ctl {
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 55%), rgba(13,15,19,.85);
+    backdrop-filter: blur(8px);
+  }
+
+  /* ============ SEGMENTED CONTROL (modes / view pick) ============ */
+  .seg {
+    display: inline-flex; gap: 2px;
+    background: var(--well);
+    border: 1px solid var(--line);
+    border-radius: 10px; padding: 3px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.5);
+  }
+  .seg > div {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 13px; border-radius: 7px; border: 1px solid transparent;
+    font-size: 12px; font-weight: 600; color: var(--txt-2);
+    cursor: pointer; transition: color var(--ease);
+  }
+  .seg > div:hover { color: var(--txt); }
+  .seg > div.active {
+    background: linear-gradient(180deg, rgba(232,181,77,.22), rgba(232,181,77,.07)), #1d2228;
+    border-color: var(--gold-line); color: var(--gold);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 1px 3px rgba(0,0,0,.45);
+  }
+  .seg.sm > div { padding: 3px 9px; font-size: 11px; }
+  .seg.ovl-seg { background: rgba(8,9,11,.8); backdrop-filter: blur(8px); }
+
+  /* ============ TOGGLE SWITCH (on/off) ============ */
+  .switch {
+    position: relative; width: 34px; height: 19px; flex: none;
+    border-radius: 999px; cursor: pointer;
+    background: var(--well);
+    border: 1px solid var(--line);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.55);
+    transition: background-color var(--ease), border-color var(--ease);
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: linear-gradient(180deg, #b7bdc6, #8e959f);
+    box-shadow: 0 1px 2px rgba(0,0,0,.5);
+    transition: left var(--ease), background var(--ease);
+  }
+  .switch.on { background: linear-gradient(180deg, rgba(232,181,77,.45), rgba(232,181,77,.25)); border-color: var(--gold-line); }
+  .switch.on::after { left: 17px; background: linear-gradient(180deg, #f6d186, var(--gold)); }
+
+  /* ============ APP GRID ============ */
+  .app { display: grid; grid-template-rows: 58px 1fr; height: 100vh; }
+  .content { display: grid; grid-template-columns: 1fr 364px; gap: 14px; padding: 14px; min-height: 0; }
+  .left { display: grid; grid-template-rows: 1fr 252px; gap: 14px; min-height: 0; min-width: 0; }
+
+  /* ============ TOP BAR ============ */
+  .topbar {
+    display: flex; align-items: center; gap: 18px;
+    padding: 0 18px;
+    background: linear-gradient(180deg, #101318, #0b0d10);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 11px; margin-right: 6px; }
+  .brand .glyph {
+    width: 30px; height: 30px; border-radius: 8px;
+    object-fit: cover; display: block;
+    box-shadow: 0 2px 6px rgba(0,0,0,.5);
+  }
+  .brand .name { font-weight: 650; font-size: 15px; }
+  .brand .name b { color: var(--gold); font-weight: 650; }
+  .tabs > div { padding: 7px 18px; font-size: 13px; }
+  .topbar .spacer { flex: 1; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 34px; padding: 0 14px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 550; color: var(--txt-2); cursor: default;
+  }
+  .chip .num { color: var(--txt); font-size: 12px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 7px rgba(63,214,138,.8); flex: none; }
+  .dot.warn { background: var(--amber); box-shadow: 0 0 7px rgba(232,161,61,.8); }
+
+  .stopbtn {
+    display: inline-flex; align-items: center; gap: 9px;
+    height: 36px; padding: 0 22px;
+    background: linear-gradient(180deg, #ef5a5f, #cf383e);
+    border: 1px solid #a8232a; border-radius: 10px;
+    color: #fff; font-weight: 750; font-size: 13px; letter-spacing: 1.6px;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 0 16px rgba(229,72,77,.22), 0 2px 6px rgba(0,0,0,.45);
+    transition: filter var(--ease);
+  }
+  .stopbtn:hover { filter: brightness(1.08); }
+  .stopbtn svg { width: 11px; height: 11px; }
+
+  /* ============ VIEW PANELS ============ */
+  .viewpanel {
+    position: relative;
+    background: var(--card-lo);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    overflow: hidden; min-height: 0; min-width: 0;
+    box-shadow: 0 2px 12px rgba(0,0,0,.3);
+  }
+  .viewwell { position: absolute; inset: 0; background: var(--inset); display: grid; place-items: center; }
+  .camframe {
+    position: relative; height: 100%; aspect-ratio: 4 / 3;
+    background: linear-gradient(180deg, #2a2d31 0%, #232629 38%, #3a3d40 38.5%, #2e3134 60%, #212427 60.5%, #1a1c1f 100%);
+    overflow: hidden;
+  }
+  .camframe .door { position: absolute; left: 18%; top: 12%; width: 13%; height: 49%; background: linear-gradient(180deg, #4f483a, #3a352b); border: 2px solid #15161a; }
+  .camframe .bench { position: absolute; right: 8%; top: 38%; width: 30%; height: 9%; background: #4a423444; border-top: 2px solid #5d5443; }
+  .camframe .truss { position: absolute; right: 24%; top: 10%; width: 4.5%; height: 78%; background: repeating-linear-gradient(180deg, #101113 0 14px, #1d1f23 14px 17px); }
+  .person { position: absolute; left: 52%; top: 33%; width: 13%; height: 47%; }
+  .person .body {
+    position: absolute; inset: 0;
+    background: radial-gradient(50% 26% at 50% 12%, #6e6256 99%, transparent),
+                linear-gradient(180deg, transparent 22%, #4b5246 23%, #424838 70%, #33372c 100%);
+    border-radius: 40% 40% 8% 8%; filter: blur(.4px);
+  }
+  .bbox { position: absolute; inset: -3% -8%; border: 1.5px solid var(--gold); border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+  .bbox label { position: absolute; top: -21px; left: -1.5px; background: var(--gold); color: #181206; font: 600 10.5px/1 var(--mono); padding: 4px 7px; border-radius: 2px 2px 2px 0; }
+
+  .ovl { position: absolute; z-index: 3; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; font-size: 12px; color: var(--txt-2); cursor: default; }
+  .badge .num { color: var(--txt); font-size: 11.5px; }
+  .keyhint { height: 26px; padding: 0 12px; display: inline-flex; align-items: center; font: 500 11px/1 var(--mono); color: var(--txt-3); cursor: default; }
+
+  /* ============ BOTTOM STRIP — layered panels ============ */
+  .strip { display: grid; grid-template-columns: 332px 1.6fr 1.1fr; gap: 14px; min-height: 0; }
+
+  .mapwell { position: absolute; inset: 0; background: var(--inset); }
+  .mapsvg { width: 100%; height: 100%; }
+  .smallctl { display: flex; flex-direction: column; gap: 5px; }
+  .iconbtn { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; }
+  .iconbtn svg.ico { width: 14px; height: 14px; }
+  .iconbtn.on { background: linear-gradient(180deg, rgba(232,181,77,.22), rgba(232,181,77,.07)), rgba(13,15,19,.85); border-color: var(--gold-line); color: var(--gold); }
+  .legend { display: flex; gap: 10px; align-items: center; height: 24px; padding: 0 10px; border-radius: 7px; font-size: 10px; color: var(--txt-3); cursor: default; }
+  .lg { display: inline-flex; align-items: center; gap: 4px; }
+  .sw { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+  .panel {
+    background: linear-gradient(180deg, var(--card-hi), var(--card-lo));
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    padding: 13px 14px 14px;
+    display: flex; flex-direction: column; min-width: 0;
+    box-shadow: 0 2px 12px rgba(0,0,0,.3);
+  }
+  .panel h3 {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 1.6px;
+    color: var(--txt-3); text-transform: uppercase;
+    margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+  }
+
+  /* telemetry mini-cards (reference's icon+label+value tiles) */
+  .minigrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex: 1; }
+  .mini {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    padding: 9px 12px;
+    display: flex; flex-direction: column; gap: 3px; justify-content: center;
+    min-width: 0;
+  }
+  .mini .lbl { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .6px; color: var(--txt-3); text-transform: uppercase; }
+  .mini .lbl svg.ico { width: 12px; height: 12px; }
+  .mini .val { font-size: 17px; font-weight: 480; }
+  .mini .val small { color: var(--txt-3); font-size: 10.5px; margin-left: 3px; font-weight: 500; }
+  .mini.state .val { color: var(--gold); font: 650 13.5px/1.4 var(--mono); letter-spacing: 1px; }
+
+  /* streams list (reference's option-list pattern) */
+  .streamrow {
+    display: grid; grid-template-columns: 9px 62px 1fr auto; gap: 9px;
+    align-items: center;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    padding: 6px 11px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .streamrow:last-child { margin-bottom: 0; }
+  .streamrow .nm { color: var(--txt-2); font-weight: 550; }
+  .streamrow .bar { height: 4px; border-radius: 2px; background: var(--well); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,.55); }
+  .streamrow .bar i { display: block; height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--gold-deep), var(--gold)); }
+  .streamrow .rate { color: var(--txt); font-size: 10.5px; }
+
+  /* ============ AGENT PANEL ============ */
+  .agent {
+    background: linear-gradient(180deg, var(--card-hi), var(--card-lo));
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    display: grid; grid-template-rows: auto 1fr auto auto;
+    min-height: 0;
+    box-shadow: 0 2px 12px rgba(0,0,0,.3);
+  }
+  .agent header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+  .agent header h3 { font-size: 10.5px; font-weight: 700; letter-spacing: 1.6px; color: var(--txt-3); }
+  .clearbtn { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; font-size: 11.5px; font-weight: 550; }
+  .clearbtn svg.ico { width: 13px; height: 13px; }
+
+  .chat { overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 11px; }
+  .msg { max-width: 86%; }
+  .msg .t { font: 400 9.5px/1 var(--mono); color: var(--txt-3); margin: 0 4px 4px; }
+  .msg.user { align-self: flex-end; text-align: right; }
+  .msg.user .bubble {
+    background: linear-gradient(180deg, rgba(232,181,77,.20), rgba(232,181,77,.10));
+    border: 1px solid var(--gold-line);
+    color: var(--gold); border-radius: 12px 12px 4px 12px;
+    padding: 9px 13px; font-size: 13px; display: inline-block; text-align: left;
+  }
+  .msg.ai .bubble {
+    background: var(--panel-2); border: 1px solid var(--line);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    border-radius: 12px 12px 12px 4px; padding: 9px 13px; font-size: 13px;
+  }
+  .tools { align-self: flex-start; border-left: 2px solid var(--gold-line); padding: 2px 0 2px 11px; display: flex; flex-direction: column; gap: 5px; }
+  .tool { font: 500 11.5px/1.5 var(--mono); color: var(--txt-2); cursor: pointer; }
+  .tool::before { content: "▸ "; color: var(--gold); }
+  .tool .ok { color: var(--green); }
+  .working { display: flex; align-items: center; gap: 9px; color: var(--txt-3); font-size: 12px; padding-left: 4px; }
+  .working .dots { display: inline-flex; gap: 3px; }
+  .working .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); animation: blink 1.2s infinite; }
+  .working .dots i:nth-child(2) { animation-delay: .2s; }
+  .working .dots i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%,80%,100% { opacity:.25 } 40% { opacity:1 } }
+
+  .composer { display: flex; gap: 9px; padding: 12px 14px; border-top: 1px solid var(--line); }
+  .composer input {
+    flex: 1; height: 38px;
+    background: var(--well); border: 1px solid var(--line);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.45);
+    border-radius: 10px; padding: 0 13px; color: var(--txt); font-size: 13px;
+    font-family: inherit; outline: none;
+    transition: border-color var(--ease);
+  }
+  .composer input::placeholder { color: var(--txt-3); }
+  .composer input:focus { border-color: var(--gold-line); }
+  .sendbtn {
+    height: 38px; padding: 0 18px;
+    background: linear-gradient(180deg, #f3c869, var(--gold-deep));
+    border: 1px solid #a87e23; border-radius: 10px;
+    color: #181206; font-weight: 700; font-size: 13px; font-family: inherit;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 5px rgba(0,0,0,.4);
+    transition: filter var(--ease);
+  }
+  .sendbtn:hover { filter: brightness(1.06); }
+
+  .qa { padding: 12px 14px 14px; border-top: 1px solid var(--line); }
+  .qa h3 { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--txt-3); margin-bottom: 9px; display: flex; justify-content: space-between; align-items: center; }
+  .editbtn { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; font-size: 10.5px; font-weight: 600; }
+  .editbtn svg.ico { width: 12px; height: 12px; }
+  .qa .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .qbtn { height: 30px; padding: 0 13px; display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; }
+  .qa .last { margin-top: 9px; font: 400 10px/1.5 var(--mono); color: var(--txt-3); }
+</style>
+</head>
+<body>
+
+<!-- ============ SVG ICON SET ============ -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6.5" width="19" height="11" rx="2"/><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M6 13.5h.01M16.5 13.5h.01M9 13.5h6"/></symbol>
+  <symbol id="i-stick" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M12 11v4"/><path d="M7 15h10l1.5 3.5h-13z"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M9 3.5H5a1.5 1.5 0 0 0-1.5 1.5v4M15 3.5h4A1.5 1.5 0 0 1 20.5 5v4M9 20.5H5A1.5 1.5 0 0 1 3.5 19v-4M15 20.5h4a1.5 1.5 0 0 0 1.5-1.5v-4"/></symbol>
+  <symbol id="i-follow" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 6.5h15M9.5 6.5v-2a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v2M6.5 6.5l1 13a1.5 1.5 0 0 0 1.5 1.4h6a1.5 1.5 0 0 0 1.5-1.4l1-13"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-axis" viewBox="0 0 24 24"><path d="M5 19V5M5 19h14M9 9l-4-4-4 4" transform="translate(4,0) scale(.85)"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l3.5-3.5"/><path d="M4 18h16"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 17h6a3.5 3.5 0 0 0 0-7h-4"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5.5 21V4"/><path d="M5.5 4.5c5-2.5 8 2.5 13 0v9c-5 2.5-8-2.5-13 0"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></symbol>
+</svg>
+
+<div class="app">
+
+  <!-- ============ TOP BAR ============ -->
+  <div class="topbar">
+    <div class="brand">
+      <img class="glyph" src="logo.png" alt="">
+      <div class="name">RoboDimOS <b>Control</b></div>
+    </div>
+    <div class="seg tabs">
+      <div class="active">Control</div>
+      <div>Navigation</div>
+      <div>Settings</div>
+      <div>Diagnostics</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="chip ctl"><span class="dot"></span> stack online · <span class="num">21 modules</span></div>
+    <div class="chip ctl">run <span class="num">00:42:13</span></div>
+    <button class="stopbtn"><svg class="ico"><use href="#i-stop"/></svg>STOP</button>
+  </div>
+
+  <!-- ============ CONTENT ============ -->
+  <div class="content">
+    <div class="left">
+
+      <!-- MAIN VIEW -->
+      <div class="viewpanel">
+        <div class="viewwell">
+          <div class="camframe">
+            <div class="door"></div><div class="bench"></div><div class="truss"></div>
+            <div class="person">
+              <div class="body"></div>
+              <div class="bbox"><label>person 0.91</label></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- view picker: segmented -->
+        <div class="ovl" style="top:12px; left:12px;">
+          <div class="seg ovl-seg">
+            <div class="active">Camera</div><div>Costmap</div><div>3D</div><div>Depth</div>
+          </div>
+        </div>
+
+        <!-- stream readout -->
+        <div class="ovl" style="top:58px; left:12px;">
+          <div class="badge ctl"><span class="num">640×480</span><span style="color:var(--txt-3)">·</span><span class="num">14.8 FPS</span></div>
+        </div>
+
+        <!-- YOLO: real switch + readout -->
+        <div class="ovl" style="top:12px; right:12px;">
+          <div class="badge ctl" style="gap:10px; cursor:pointer;">
+            <span class="switch on"></span>
+            <svg class="ico" style="width:14px;height:14px;"><use href="#i-eye"/></svg>
+            YOLO · persons <span class="num" style="color:var(--gold);">1</span>
+          </div>
+        </div>
+
+        <!-- teleop: 3-state segmented (keys / stick / off) -->
+        <div class="ovl" style="bottom:12px; right:12px;">
+          <div class="seg ovl-seg">
+            <div class="active"><svg class="ico" style="width:15px;height:15px;"><use href="#i-keyboard"/></svg>Keys</div>
+            <div><svg class="ico" style="width:15px;height:15px;"><use href="#i-stick"/></svg>Stick</div>
+            <div>Off</div>
+          </div>
+        </div>
+        <div class="ovl" style="bottom:14px; left:50%; transform:translateX(-50%);">
+          <div class="keyhint ctl">WASD drive · Q/E strafe · A/D turn</div>
+        </div>
+      </div>
+
+      <!-- BOTTOM STRIP -->
+      <div class="strip">
+
+        <!-- small view: costmap (view-only) -->
+        <div class="viewpanel">
+          <div class="mapwell">
+            <svg class="mapsvg" viewBox="0 0 300 230" preserveAspectRatio="xMidYMid meet">
+              <rect width="300" height="230" fill="#050607"/>
+              <g fill="#14171c"><rect x="60" y="30" width="190" height="160" rx="2"/></g>
+              <g fill="#e8b54d" opacity=".75">
+                <rect x="58" y="28" width="194" height="5"/><rect x="58" y="186" width="120" height="5"/>
+                <rect x="58" y="28" width="5" height="163"/><rect x="247" y="28" width="5" height="100"/>
+                <rect x="150" y="95" width="34" height="9"/><rect x="206" y="140" width="9" height="40"/>
+              </g>
+              <g fill="#b9842b" opacity=".4">
+                <rect x="66" y="36" width="6" height="6"/><rect x="240" y="40" width="6" height="6"/>
+                <rect x="120" y="180" width="6" height="6"/><rect x="180" y="60" width="6" height="6"/>
+              </g>
+              <polyline points="120,150 138,128 160,118 188,116" fill="none" stroke="#e8b54d" stroke-width="2" stroke-dasharray="4 3" opacity=".9"/>
+              <circle cx="188" cy="116" r="5" fill="none" stroke="#e8b54d" stroke-width="2"/>
+              <g transform="translate(120,150) rotate(-40)"><path d="M0,-8 L6,6 L0,3 L-6,6 Z" fill="#e8b54d"/></g>
+            </svg>
+          </div>
+          <div class="ovl" style="top:8px; left:8px;">
+            <div class="seg ovl-seg sm">
+              <div>Cam</div><div class="active">Map</div><div>3D</div><div>Depth</div>
+            </div>
+          </div>
+          <div class="ovl smallctl" style="top:8px; right:8px;">
+            <div class="iconbtn ctl"><svg class="ico"><use href="#i-plus"/></svg></div>
+            <div class="iconbtn ctl"><svg class="ico"><use href="#i-minus"/></svg></div>
+            <div class="iconbtn ctl" title="fit map"><svg class="ico"><use href="#i-fit"/></svg></div>
+            <div class="iconbtn ctl on" title="follow robot"><svg class="ico"><use href="#i-follow"/></svg></div>
+          </div>
+          <div class="ovl" style="bottom:8px; left:8px;">
+            <div class="legend ctl">
+              <span class="lg"><span class="sw" style="background:#050607; border:1px solid #2a2e34;"></span>unknown</span>
+              <span class="lg"><span class="sw" style="background:#14171c; border:1px solid #2a2e34;"></span>free</span>
+              <span class="lg"><span class="sw" style="background:#e8b54d;"></span>wall</span>
+              <span class="lg"><span class="sw" style="background:#e5484d;"></span>lethal</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- telemetry: mini-card grid -->
+        <div class="panel">
+          <h3>Telemetry</h3>
+          <div class="minigrid">
+            <div class="mini"><span class="lbl"><svg class="ico"><use href="#i-axis"/></svg>Position X</span><span class="val num">−0.17<small>m</small></span></div>
+            <div class="mini"><span class="lbl"><svg class="ico"><use href="#i-axis"/></svg>Position Y</span><span class="val num">−0.00<small>m</small></span></div>
+            <div class="mini"><span class="lbl"><svg class="ico"><use href="#i-compass"/></svg>Heading</span><span class="val num">137.5<small>°</small></span></div>
+            <div class="mini"><span class="lbl"><svg class="ico"><use href="#i-gauge"/></svg>Speed</span><span class="val num">0.42<small>m/s</small></span></div>
+            <div class="mini state"><span class="lbl"><svg class="ico"><use href="#i-route"/></svg>Nav State</span><span class="val">WALKING</span></div>
+            <div class="mini"><span class="lbl"><svg class="ico"><use href="#i-flag"/></svg>Goal Dist</span><span class="val num">2.31<small>m</small></span></div>
+          </div>
+        </div>
+
+        <!-- streams: option-list pattern -->
+        <div class="panel">
+          <h3>Streams</h3>
+          <div class="streamrow"><span class="dot"></span><span class="nm">camera</span><span class="bar"><i style="width:92%"></i></span><span class="rate num">14.8 fps · 410 kB/s</span></div>
+          <div class="streamrow"><span class="dot"></span><span class="nm">depth</span><span class="bar"><i style="width:90%"></i></span><span class="rate num">14.6 fps · 360 kB/s</span></div>
+          <div class="streamrow"><span class="dot"></span><span class="nm">costmap</span><span class="bar"><i style="width:70%"></i></span><span class="rate num">1.9 Hz · 18 kB/s</span></div>
+          <div class="streamrow"><span class="dot"></span><span class="nm">odom</span><span class="bar"><i style="width:85%"></i></span><span class="rate num">9.8 Hz</span></div>
+          <div class="streamrow"><span class="dot warn"></span><span class="nm">cloud</span><span class="bar"><i style="width:45%; background:linear-gradient(90deg,#b97f2a,var(--amber));"></i></span><span class="rate num">0.9 Hz · 870 kB/s</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ AGENT PANEL ============ -->
+    <div class="agent">
+      <header>
+        <h3>AGENT CHAT</h3>
+        <div class="clearbtn ctl"><svg class="ico"><use href="#i-trash"/></svg>clear</div>
+      </header>
+      <div class="chat">
+        <div class="msg user"><div class="t">14:31:02</div><div class="bubble">wave hello</div></div>
+        <div class="tools">
+          <div class="tool">speak <span class="ok">✓</span></div>
+          <div class="tool">execute_arm_command <span class="ok">✓</span></div>
+        </div>
+        <div class="msg ai"><div class="t">14:31:09</div><div class="bubble">Hello there! 👋 Giving you my best high wave.</div></div>
+        <div class="msg user"><div class="t">14:33:40</div><div class="bubble">walk to the saved point "bench" and wait there</div></div>
+        <div class="working"><span class="dots"><i></i><i></i><i></i></span> Larry is working…</div>
+      </div>
+      <div class="composer">
+        <input placeholder="Tell the robot…">
+        <button class="sendbtn">Send</button>
+      </div>
+      <div class="qa">
+        <h3>QUICK ACTIONS <span class="editbtn ctl"><svg class="ico"><use href="#i-sliders"/></svg>edit</span></h3>
+        <div class="row">
+          <div class="qbtn ctl">HighWave</div><div class="qbtn ctl">HandsUp</div><div class="qbtn ctl">Clap</div>
+          <div class="qbtn ctl">CancelAction</div><div class="qbtn ctl">Handshake</div>
+        </div>
+        <div class="last">HandsUp: 'HandsUp' command executed successfully.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

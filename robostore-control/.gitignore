@@ -1,0 +1,6 @@
+# Build + runtime artifacts (created on the Jetson, never committed)
+web/node_modules/
+web/dist/
+bridge/settings.json
+__pycache__/
+*.pyc

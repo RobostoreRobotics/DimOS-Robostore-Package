@@ -1,0 +1,16 @@
+[Unit]
+Description=Robostore DimOS Control bridge (web panel on :7780)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=unitree
+# LCM on loopback needs multicast enabled; DimOS normally sets this at launch,
+# but at boot the bridge may start first. '+' runs the pre-step as root.
+ExecStartPre=+/bin/sh -c 'ip link set lo multicast on; ip route replace 224.0.0.0/4 dev lo'
+ExecStart=/home/unitree/dimos-dev/.venv/bin/python /home/unitree/robostore-control/bridge/server.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
